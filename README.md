@@ -21,8 +21,8 @@ npm install slack-bot-tester
 var mokbot = require('slack-bot-tester');
 
 var tester = mokbot({
-  token: <your slack topen here>,
-  name: <name of bot you want to test>
+  token: '<your slack topen here>',
+  name: '<name of bot you want to test>'
 });
 ```
 
