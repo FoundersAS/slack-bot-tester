@@ -4,6 +4,7 @@ var TESTER_NAME = 'robbie';
 
 module.exports = function (opts) {
   var that = new EventEmitter();
+
   var controller = botkit.slackbot();
   var currentChannel;
   var channels = {};
@@ -12,7 +13,9 @@ module.exports = function (opts) {
   var replyCbs = [];
   var mentionCbs = [];
   var matchCbs = [];
+  var reactionsCbs = [];
   var bot;
+  var rtmMessages = new EventEmitter();
 
   var tester = controller.spawn({
     token: opts.token,
@@ -24,11 +27,15 @@ module.exports = function (opts) {
       return user.name === opts.name;
     })[0];
     if (!bot) that.emit('error', new Error('Couldn\'t find the bot'));
-  })
+  });
 
-  controller.hears('', ['message', 'direct_message', 'mention', 'direct_mention'], function(tester, message) {
-    if (replyCbs.length) replyCbs.shift()(null, message);
-    if (mentionCbs.length && message.event === 'direct_mention') mentionCbs.shift()(null, message);
+  rtmMessages.on('message', function (message) {
+    if (message.user === tester.identity.id) return;
+    if (['message', 'direct_message', 'mention', 'direct_mention', 'reaction_added'].indexOf(message.type) === -1) return;
+
+    if (message.type === 'message' && replyCbs.length) replyCbs.shift()(null, message);
+    if (message.type === 'reaction_added' && reactionsCbs.length) reactionsCbs.shift()(null, message);
+
     if (!matchCbs.length) return;
     var idx = matchCbs.reduce(function (idx, matchCb, i) {
       return idx === -1 && message.text.match(matchCb.regex) ? i : idx;
@@ -36,10 +43,19 @@ module.exports = function (opts) {
     if (idx === -1) return;
     matchCbs[idx].cb(message);
     matchCbs = matchCbs.slice(0, idx).concat(matchCbs.slice(idx + 1)); // Remove the matching cb
+
+  });
+
+  controller.hears('', ['mention', 'direct_mention'], function(tester, message) {
+    if (mentionCbs.length && message.event === 'direct_mention') mentionCbs.shift()(null, message);
   });
 
   controller.on('rtm_open', function () {
     isRTMOpen = true;
+
+    tester.rtm.on('message', function (data) {
+      rtmMessages.emit('message', JSON.parse(data));
+    });
 
     rtmOpenCbs.forEach(function (fn) {
       fn();
@@ -96,6 +112,41 @@ module.exports = function (opts) {
   that.nextMatch = function (regex, cb) {
     matchCbs.push({regex: regex, cb: cb});
   };
+
+  that.nextReaction = function (cb) {
+    reactionsCbs.push(cb);
+  };
+
+  that.script = function (scrpt, cb) {
+    var s = scrpt.slice();
+
+    loop();
+    function loop() {
+      if (!s.length) return cb(null, {ok: true});
+
+      var next = s.shift();
+      if (next.tester && next.bot) return cb(new Error('Cannot set both tester and bot.'));
+
+      if (next.tester) {
+        that.say(next.tester);
+        loop();
+        return;
+      }
+      if (next.bot) return that.nextReply(checkReply(next.bot));
+    }
+
+    function checkReply (expected) {
+      return function (err, reply) {
+        if (err) return cb(err);
+        if (reply.text !== expected) return cb(null, {ok: false});
+        loop();
+      }
+    }
+  };
+
+  that.close = function () {
+    tester.closeRTM();
+  }
 
   return that;
 };
