@@ -18,5 +18,8 @@
   "homepage": "https://github.com/foundersas/mokbot#readme",
   "dependencies": {
     "botkit": "0.0.8"
+  },
+  "devDependencies": {
+    "tape": "^4.5.1"
   }
 }
