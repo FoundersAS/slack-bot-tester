@@ -13,6 +13,39 @@
 npm install slack-bot-tester
 ```
 
+## example test using tape
+
+Let's say you have a bot that says 'hello' when you say hi to it,
+and it reacts with a :heart: when you tell it 'you rock'. Here is
+how you test it.
+
+```js
+var test = require('tape');
+var botTester = require('slack-bot-tester');
+
+test('simple test', function (t) {
+  tester = botTester({
+    token: '<your slack topen here>',
+    name: <name of bot you want to test>
+  });
+
+  tester.nextReply(onreply);
+  tester.nextReaction(onreaction);
+
+  tester.say('hi');
+
+  function onreply (err, msg) {
+    t.notOk(err);
+    t.equal(msg.text, 'hello');
+  }
+
+  function onreaction (err, reaction) {
+    t.notOk(err);
+    t.equal(reaction.reaction, 'heart');
+  }
+});
+```
+
 ## api
 
 ### Setup
