@@ -1,5 +1,6 @@
 var botkit = require('botkit');
 var EventEmitter = require('events').EventEmitter;
+var thunky = require('thunky');
 var TESTER_NAME = 'robbie';
 
 module.exports = function (opts) {
@@ -31,19 +32,28 @@ module.exports = function (opts) {
 
   rtmMessages.on('message', function (message) {
     if (message.user === tester.identity.id) return;
-    if (['message', 'direct_message', 'mention', 'direct_mention', 'reaction_added'].indexOf(message.type) === -1) return;
+    if (['message', 'reaction_added'].indexOf(message.type) === -1) return;
 
-    if (message.type === 'message' && replyCbs.length) replyCbs.shift()(null, message);
-    if (message.type === 'reaction_added' && reactionsCbs.length) reactionsCbs.shift()(null, message);
+    getChannels(function (err, channels) {
+      if (err) return that.emit('error', err);
 
-    if (!matchCbs.length) return;
-    var idx = matchCbs.reduce(function (idx, matchCb, i) {
-      return idx === -1 && message.text.match(matchCb.regex) ? i : idx;
-    }, -1);
-    if (idx === -1) return;
-    matchCbs[idx].cb(message);
-    matchCbs = matchCbs.slice(0, idx).concat(matchCbs.slice(idx + 1)); // Remove the matching cb
+      var ch;
+      if (message.channel) {
+        ch = channels.filter(c => c.id === message.channel)[0];
+        if (ch) message.channelName = '#' + ch.name;
+        else message.channelName = 'dm';
+      }
+      if (message.type === 'message' && replyCbs.length) replyCbs.shift()(null, message);
+      if (message.type === 'reaction_added' && reactionsCbs.length) reactionsCbs.shift()(null, message);
 
+      if (!matchCbs.length) return;
+      var idx = matchCbs.reduce(function (idx, matchCb, i) {
+        return idx === -1 && message.text.match(matchCb.regex) ? i : idx;
+      }, -1);
+      if (idx === -1) return;
+      matchCbs[idx].cb(message);
+      matchCbs = matchCbs.slice(0, idx).concat(matchCbs.slice(idx + 1)); // Remove the matching cb
+    });
   });
 
   controller.hears('', ['mention', 'direct_mention'], function(tester, message) {
@@ -96,7 +106,8 @@ module.exports = function (opts) {
   that.dm = function (message, opts) {
     if (!isRTMOpen) return rtmOpenCbs.push(that.dm.bind(null, message, opts));
 
-    tester.startPrivateConversation({user: bot.id}, function (response, convo){
+    tester.startPrivateConversation({user: bot.id}, function (err, convo){
+      if (err) return that.emit('error', err);
       convo.say(message);
     });
   }
@@ -146,7 +157,18 @@ module.exports = function (opts) {
 
   that.close = function () {
     tester.closeRTM();
-  }
+  };
+
+  that.addReaction = function (msg, name, cb) {
+    tester.api.reactions.add({name: name, channel: msg.channel, timestamp: msg.ts});
+  };
+
+  var getChannels = thunky(function (cb) {
+    tester.api.channels.list({}, function (err, ch) {
+      if (err) return cb(err);
+      cb(null, ch.channels);
+    });
+  });
 
   return that;
 };

@@ -38,6 +38,31 @@ test('script', function (t) {
   });
 });
 
+test('dm', function (t) {
+  juliet.dm('I can\'t say this');
+  juliet.on('error', function (err) {
+    t.equal(err, 'cannot_dm_bot');
+    t.end();
+  });
+});
+
+test('reactions', function (t) {
+  romeo.nextReply(onreply);
+  juliet.nextReaction(onreaction);
+  juliet.say("This bud of love, by summer's ripening breath, May prove a beauteous flower when next we meet.");
+
+  function onreply (err, msg) {
+    t.notOk(err);
+    romeo.addReaction(msg, 'heart');
+  }
+
+  function onreaction (err, reaction) {
+    t.notOk(err);
+    t.equal(reaction.reaction, 'heart');
+    t.end();
+  }
+});
+
 test('end', function (t) {
   t.end();
   process.exit();
