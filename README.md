@@ -85,6 +85,8 @@ tester.mention('Can I have some beer?');
 
 ### .dm(message)
 
+**Notice:** Not working yet.
+
 Directly message your bot
 
 ```js
@@ -131,8 +133,21 @@ tester.nextReaction(function (reaction) {
 });
 ```
 
-### .conversation()
+### .script(erray, callback)
 
-TBI
+You can do entire scripts with this convenience method.
 
-
+```js
+tester.script([
+  {tester: 'Romeo!'},
+  {bot: 'My dear?'},
+  {tester: 'At what o\'clock to-morrow. Shall I send to thee?'},
+  {bot: 'At the hour of nine.'},
+  {tester: 'I will not fail: \'tis twenty years till then. I have forgot why I did call thee back.'},
+  {bot: 'Let me stand here till thou remember it.'},
+  {tester: 'I shall forget, to have thee still stand there, Remembering how I love thy company.'},
+  {bot: 'And I\'ll still stay, to have thee still forget, Forgetting any other home but this.'}
+], function (err, result) {
+  // ...
+});
+```
