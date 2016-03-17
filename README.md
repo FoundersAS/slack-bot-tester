@@ -133,7 +133,7 @@ tester.nextReaction(function (reaction) {
 });
 ```
 
-### .script(erray, callback)
+### .script(array, callback)
 
 You can do entire scripts with this convenience method.
 
